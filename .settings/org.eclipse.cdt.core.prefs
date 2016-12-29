@@ -1,0 +1,6 @@
+eclipse.preferences.version=1
+environment/project/org.eclipse.linuxtools.cdt.autotools.core.toolChain.465173995/PATH/delimiter=\:
+environment/project/org.eclipse.linuxtools.cdt.autotools.core.toolChain.465173995/PATH/operation=append
+environment/project/org.eclipse.linuxtools.cdt.autotools.core.toolChain.465173995/PATH/value=/usr/local/gcc-arm-none-eabi-5_2-2015q4/bin
+environment/project/org.eclipse.linuxtools.cdt.autotools.core.toolChain.465173995/append=true
+environment/project/org.eclipse.linuxtools.cdt.autotools.core.toolChain.465173995/appendContributed=true

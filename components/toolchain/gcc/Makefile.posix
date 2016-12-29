@@ -1,0 +1,4 @@
+GNU_INSTALL_ROOT := /usr/local/gcc-arm-none-eabi-5_2-2015q4
+GNU_VERSION := 5.2.2
+GNU_PREFIX := arm-none-eabi
+
