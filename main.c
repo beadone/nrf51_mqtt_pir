@@ -25,6 +25,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 #include "bsp/boards.h"
 #include "bsp/pca10028.h"
 #include "app_timer_appsh.h"
@@ -50,8 +51,6 @@
 
 #include "nrf_log.h"
 
-#include <stdbool.h>
-#include <stdint.h>
 #include "nrf.h"
 #include "nrf_drv_gpiote.h"
 #include "app_error.h"
@@ -135,15 +134,14 @@ static const char                           m_pir1_state_on[] = "1";            
 static const char                           m_pir1_state_off[] = "0";                      		/**< sensor off. */
 
 static long 								hearbeat_timer = 0;
-
 static bool                                 m_pir1_state  = false;                                   /**< pir state. This is the topic being published by the example MQTT client. */
-
-
 static bool                                 m_connection_state  = false;                            /**< MQTT Connection state. */
 
 
 void app_mqtt_evt_handler(const mqtt_client_t * p_client, const mqtt_evt_t * p_evt);
-static void app_mqtt_publish(bool pir1_state, char* topic);
+
+static void mqtt_publish_msg(char* mqtt_msg, char* topic);
+
 static void pir_pin_init(void);
 void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action);
 static void mqtt_timer_callback(void * p_context);
@@ -207,8 +205,17 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
     {
     	//we have a reading, toggle the sensor state
     	m_pir1_state = !m_pir1_state;
-        app_mqtt_publish(m_pir1_state, (uint8_t *)topic_desc);
-        //APPL_LOG("[APPL]: sensor publishing\r\n");
+
+        if (m_pir1_state == true)
+        {
+        	mqtt_publish_msg((uint8_t *)m_pir1_state_on, (uint8_t *)topic_desc);
+        }
+        else
+        {
+        	mqtt_publish_msg((uint8_t *)m_pir1_state_off, (uint8_t *)topic_desc);
+        }
+
+
     }
     else
     {
@@ -413,13 +420,12 @@ static void system_timer_callback(void * p_context)
     // keep the mqtt connection open
     // calls mqtt_ping
     UNUSED_VARIABLE(mqtt_live());
-    //send a heart beat, openhab can use this to monitor the sensors state
-  //  app_mqtt_publish(m_pir1_state, (uint8_t *)topic_imalive);
+
 }
 
 /**@brief Timer callback used for starting mqtt connection
  *        Will try to connect periodically
- *        this means that the brokercan be reset and the
+ *        this means that the broker can be reset and the
  *        device will reconnect once ip6 is up
  *
  * @details .
@@ -453,13 +459,15 @@ static void mqtt_timer_callback(void * p_context)
 
         //send a heart beat, openhab can use this to monitor the sensor state
       //  about every 30 minutes
+    	// sends to the topic kitchen/imalive1
 
     	hearbeat_timer++;
     	//if (hearbeat_timer > 900){
     		if (hearbeat_timer > 3){
-    		app_mqtt_publish(m_pir1_state, (uint8_t *)topic_imalive);
-    		hearbeat_timer = 0;
-    		APPL_LOG("[APPL]: sending heart beat\r\n");
+    			APPL_LOG("[APPL]: sending heart beat\r\n");
+    			mqtt_publish_msg((uint8_t *)m_pir1_state_on, (uint8_t *)topic_imalive);
+    			hearbeat_timer = 0;
+
     	}
 
         // out of sequence
@@ -472,51 +480,37 @@ static void mqtt_timer_callback(void * p_context)
 }
 
 
-/**@brief Publishes pir1 state to MQTT broker.
+
+
+/**@brief Publishes a message and topic to MQTT broker.
  *
- * @param[in]   pir1_state   LED state being published.
+ * @param[in]   mqtt_msg, the message to send, topic, the mqtt topic to send under
+ *
+ * modified from the original code which as for a single use.
  */
-static void app_mqtt_publish(bool pir1_state, char* topic)
+static void mqtt_publish_msg(char* mqtt_msg, char* topic)
 {
     mqtt_topic_t mqtttopic;
     mqtt_data_t  data;
 
-   // char topic_desc[] = "kitchen/sensor1";
-
-    //mqtttopic.p_topic = (uint8_t *)topic_desc;
     mqtttopic.p_topic = topic;
     mqtttopic.topic_len = strlen(topic);
+    data.data_len = strlen(mqtt_msg);
+    data.p_data = mqtt_msg;
 
-
-    APPL_LOG("[APPL]: pir1_state %d \r\n", pir1_state);
-    data.data_len = 1;
-    //data.p_data = (uint8_t *)&pir1_state;
-
-    if (pir1_state == true)
-    {
-    	//data.data_len = 2;
-    	data.p_data = (uint8_t *)&m_pir1_state_on;
-    }
-    else
-    {
-    	//data.data_len = 3;
-    	data.p_data = (uint8_t *)&m_pir1_state_off;
-    }
     uint32_t err_code = mqtt_publish(&m_app_mqtt_id,&mqtttopic, &data);
     //APPL_LOG("[APPL]: mqtt_publish result 0x%08lx\r\n", err_code);
     if (err_code == MQTT_SUCCESS)
     {
-    	APPL_LOG("[APPL]: mqtt_publish MQTT_SUCCESS 0x%08lx topic %s\r\n", err_code, topic);
-
+    	APPL_LOG("[APPL]: mqtt_publish MQTT_SUCCESS message %s topic %s\r\n", mqtt_msg, topic);
     }
     else
     {
-
     	APPL_LOG("[APPL]: mqtt_publish fail 0x%08lx\r\n", err_code);
-
-
     }
 }
+
+
 
 
 
