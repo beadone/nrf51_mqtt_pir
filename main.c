@@ -67,7 +67,6 @@
 
 
 
-#define DEVICE_NAME                         "MQTTSensor1"                                         /**< Device name used in BLE undirected advertisement. */
 
 /** Modify m_broker_addr according to your setup.
  * This address is the ip6 address of your broker
@@ -114,6 +113,7 @@ static const ip6_addr_t                     m_broker_addr =
 
 #define PIR_PIN       						18
 
+#define DEVICE_NAME                         "MQTTSensor1"                                         /**< Device name used in BLE undirected advertisement. */
 
 eui64_t                                     eui64_local_iid;                                        /**< Local EUI64 value that is used as the IID for*/
 static ble_gap_adv_params_t                 m_adv_params;                                           /**< Parameters to be passed to the stack when starting advertising. */
@@ -122,6 +122,7 @@ static app_timer_id_t                       m_sys_timer_id;                     
 static app_timer_id_t                       m_mqtt_timer_id;                                         /**< mqtt Timer used to start mqtt when ip6 is up. */
 
 static mqtt_client_t                        m_app_mqtt_id;                                          /**< MQTT Client instance reference provided by the MQTT module. */
+
 static const char                           m_device_id[] = "kitchensensor1";                      /**< Unique MQTT client identifier. */
 
 static const char 							topic_desc[] = "kitchen/sensor1";						/**< mqtt topic for this chip>*/
@@ -133,9 +134,10 @@ static const char 							topic_imalive[] = "kitchen/imalive1";						/**< mqtt al
 static const char                           m_pir1_state_on[] = "1";                      			/**< sensor on. */
 static const char                           m_pir1_state_off[] = "0";                      		/**< sensor off. */
 
-static long 								hearbeat_timer = 0;
-static bool                                 m_pir1_state  = false;                                   /**< pir state. This is the topic being published by the example MQTT client. */
+static long 								heart_beat_timer = 0;
+static bool                                 m_pir1_state  = false;                                   /**< pir state. This is the message being published by the example MQTT client. */
 static bool                                 m_connection_state  = false;                            /**< MQTT Connection state. */
+static bool                                 m_heartbeat_state  = false;                                   /**< heartbeat state. This is the message being published by the example MQTT client. */
 
 
 void app_mqtt_evt_handler(const mqtt_client_t * p_client, const mqtt_evt_t * p_evt);
@@ -214,8 +216,6 @@ void in_pin_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
         {
         	mqtt_publish_msg((uint8_t *)m_pir1_state_off, (uint8_t *)topic_desc);
         }
-
-
     }
     else
     {
@@ -461,12 +461,29 @@ static void mqtt_timer_callback(void * p_context)
       //  about every 30 minutes
     	// sends to the topic kitchen/imalive1
 
-    	hearbeat_timer++;
-    	//if (hearbeat_timer > 900){
-    		if (hearbeat_timer > 3){
+    	heart_beat_timer++;
+    	if (heart_beat_timer > 900){
+    	//	if (heart_beat_timer > 3){
+
+
+    			//re using the pir state for the message
+    			// toggle the heart beat so openhab knows things have changed
+    			m_heartbeat_state = !m_heartbeat_state;
+
+    	        if (m_heartbeat_state == true)
+    	        {
+    	        	mqtt_publish_msg((uint8_t *)m_pir1_state_on, (uint8_t *)topic_imalive);
+    	        }
+    	        else
+    	        {
+    	        	mqtt_publish_msg((uint8_t *)m_pir1_state_off, (uint8_t *)topic_imalive);
+    	        }
+
+
+
     			APPL_LOG("[APPL]: sending heart beat\r\n");
-    			mqtt_publish_msg((uint8_t *)m_pir1_state_on, (uint8_t *)topic_imalive);
-    			hearbeat_timer = 0;
+
+    			heart_beat_timer = 0;
 
     	}
 
